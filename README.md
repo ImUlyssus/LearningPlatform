@@ -281,7 +281,7 @@ Contribution
 
 Contact / Support
 -----------------
-- Kyaw Swar Hein
+- Kyaw Swar Hein's email: ksheinmm@gmail.com
 
 Appendix — Useful snippets from provided code
 ---------------------------------------------
