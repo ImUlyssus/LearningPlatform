@@ -1,0 +1,74 @@
+# .github/workflows/ci.yml
+
+
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+
+      - name: Set up Node.js
+        uses: actions/setup-node@3235b876344d2a9aa001b8d1453c930bba69e610
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run tests
+        run: npm run test:ci
+        env:
+          CI: true
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+
+      - name: Set up Node.js
+        uses: actions/setup-node@3235b876344d2a9aa001b8d1453c930bba69e610
+        with:
+          node-version: '20'
+      - name: Install deps & build
+        run: |
+          npm ci          # faster/cleaner install
+          npm run build   # creates ./dist
+
+      # ---------- 1) copy ./dist to the VPS ----------
+      - name: Upload dist folder to VPS
+        uses: appleboy/scp-action@ff85246acaad7bdce478db94a363cd2bf7c90345
+        with:
+          host:            72.60.192.163          # or use a secret
+          username:        root
+          key:             ${{ secrets.SSH_PRIVATE_KEY }}
+          port:            22
+          # remove old files first (optional but tidy)
+          rm:              true
+          source:          "dist/*"               # local path on the runner
+          target:          "/var/www/websitename/client/"  # remote dir on VPS
+
+      # ---------- 2) post-copy commands on the VPS ----------
+      - name: Restart Nginx & set perms
+        uses: appleboy/ssh-action@2ead5e36573f08b82fbfce1504f1a4b05a647c6f
+        with:
+          host:            72.60.192.163
+          username:        root
+          key:             ${{ secrets.SSH_PRIVATE_KEY }}
+          port:            22
+          script: |
+            chmod -R 755 /var/www/websitename/client
+            systemctl restart nginx

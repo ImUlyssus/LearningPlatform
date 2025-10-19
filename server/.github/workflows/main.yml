@@ -1,0 +1,99 @@
+name: Server CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main # Triggers on push to the main branch for production deployment
+      - dev # Remove in production
+
+jobs:
+  deploy-server:
+    runs-on: ubuntu-latest # The type of runner that the job will execute on
+
+    environment: testing
+
+    # Define common environment variables for this job
+    env:
+      SSH_HOST: 72.60.192.163 # Replace with your actual server IP or hostname if different
+      SSH_USERNAME: root    # Your SSH username on the server
+      SSH_PORT: 22          # Your SSH port
+      REMOTE_SERVER_DIR: /var/www/sapiensuite/server # The target directory for your server app on the VPS
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # Action to checkout your repository code
+
+      - name: Set up Node.js
+        uses: actions/setup-node@3235b876344d2a9aa001b8d1453c930bba69e610
+        with:
+          node-version: '20' # Specify the Node.js version your server requires
+
+      - name: Install local dependencies (optional, for linting/security checks if added later)
+        # This step is not strictly necessary for deployment if you skip all local checks.
+        # However, it ensures a clean 'node_modules' locally before copying.
+        run: npm ci
+
+      - name: Upload server files to VPS
+        uses: appleboy/scp-action@ff85246acaad7bdce478db94a363cd2bf7c90345
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }} # Your SSH private key secret
+          port: ${{ secrets.SSH_PORT }}
+          source: "./*" # Copies all files from the current working directory (your server project root)
+          target: ${{ secrets.REMOTE_SERVER_DIR }} # Destination directory on the VPS
+
+      - name: Deploy and Restart Server on VPS
+        uses: appleboy/ssh-action@2ead5e36573f08b82fbfce1504f1a4b05a647c6f
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          script: |
+            # Load the NVM environment so we can use npm and pm2
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+
+            # Navigate to the application directory
+            cd ${{ env.REMOTE_SERVER_DIR }}
+
+            # --- DYNAMICALLY CREATE THE .env FILE ---
+            # This is the new, robust way to handle secrets.
+            echo "--- Creating .env file on server ---"
+
+            if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+              # For the 'main' branch, create a production .env file
+              echo "NODE_ENV=production" > .env
+              echo "PRODUCTION_HOST=${{ secrets.PRODUCTION_HOST }}" >> .env
+              echo "PRODUCTION_USERNAME=${{ secrets.PRODUCTION_USERNAME }}" >> .env
+              echo "PRODUCTION_PASSWORD=${{ secrets.PRODUCTION_PASSWORD }}" >> .env
+              echo "PRODUCTION_DATABASE=${{ secrets.PRODUCTION_DATABASE }}" >> .env
+              echo "FRONTEND_URL_PRODUCTION=${{ secrets.FRONTEND_URL_PRODUCTION }}" >> .env
+              echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
+              echo "MY_EMAIL=${{ secrets.MY_EMAIL }}" >> .env
+              echo "MY_EMAIL_PASSWORD=${{ secrets.MY_EMAIL_PASSWORD }}" >> .env
+
+            elif [[ "${{ github.ref }}" == "refs/heads/dev" ]]; then
+              # For the 'dev' branch, create a testing .env file
+              echo "NODE_ENV=testing" > .env
+              echo "TEST_HOST=${{ secrets.TEST_HOST }}" >> .env
+              echo "TEST_USERNAME=${{ secrets.TEST_USERNAME }}" >> .env
+              echo "TEST_PASSWORD=${{ secrets.TEST_PASSWORD }}" >> .env
+              echo "TEST_DATABASE=${{ secrets.TEST_DATABASE }}" >> .env
+              echo "FRONTEND_URL_TESTING=${{ secrets.FRONTEND_URL_TESTING }}" >> .env
+              echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
+              echo "MY_EMAIL=${{ secrets.MY_EMAIL }}" >> .env
+              echo "MY_EMAIL_PASSWORD=${{ secrets.MY_EMAIL_PASSWORD }}" >> .env
+            fi
+
+            echo "--- Installing production dependencies ---"
+            npm ci --only=production
+            
+            echo "--- Restarting PM2 application ---"
+            # Now we just restart. The app will find the .env file on its own.
+            # Using 'restart' is a bit more forceful and reliable than 'reload' for env changes.
+            pm2 restart ecosystem.config.js
+            
+            pm2 save
+            echo "Deployment complete. PM2 process restarted and saved."

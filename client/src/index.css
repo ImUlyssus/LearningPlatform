@@ -1,0 +1,48 @@
+@import "tailwindcss";
+/* For the "ALL_COURSES" promotion */
+.gradient-green-teal-blue {
+  /* Fallback for very old browsers */
+  background-color: #14b8a6; 
+  /* The -webkit- prefix is crucial for older iOS/Safari */
+  background-image: -webkit-linear-gradient(to bottom right, #22c55e, #14b8a6, #3b82f6);
+  /* The standard syntax */
+  background-image: linear-gradient(to bottom right, #22c55e, #14b8a6, #3b82f6);
+}
+
+/* For specific course promotions */
+.gradient-purple-pink-red {
+  /* Fallback for very old browsers */
+  background-color: #ec4899;
+  /* The -webkit- prefix is crucial for older iOS/Safari */
+  background-image: -webkit-linear-gradient(to bottom right, #9333ea, #ec4899, #ef4444);
+  /* The standard syntax */
+  background-image: linear-gradient(to bottom right, #9333ea, #ec4899, #ef4444);
+}
+
+.banner-background-gradient {
+  /* Fallback color (pink-100) */
+  background-color: #fce7f3; 
+  /* The -webkit- prefix for iOS/Safari compatibility */
+  background-image: -webkit-linear-gradient(to bottom right, #dbeafe, #fce7f3, #fef9c3);
+  /* The standard CSS syntax */
+  background-image: linear-gradient(to bottom right, #dbeafe, #fce7f3, #fef9c3);
+}
+
+.gradient-purple-to-pink {
+  /* Fallback color for very old browsers */
+  background-color: #9333ea; 
+  /* The -webkit- prefix is crucial for older iOS/Safari */
+  background-image: -webkit-linear-gradient(to right, #9333ea, #db2777);
+  /* The standard CSS syntax */
+  background-image: linear-gradient(to right, #9333ea, #db2777);
+}
+
+/* In your main CSS file, e.g., src/index.css */
+
+.gradient-line {
+  width: 100%;
+  height: 4px; /* Using 4px for better visibility, equivalent to Tailwind's h-1 */
+  background: linear-gradient(to right, #facc15, #eab308, #ca8a04);
+  /* You can also use Tailwind's default colors if they're defined in your config */
+  /* background: linear-gradient(to right, theme('colors.yellow.400'), theme('colors.yellow.600'), theme('colors.yellow.700')); */
+}
